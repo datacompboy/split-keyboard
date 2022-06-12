@@ -1,0 +1,26 @@
+{
+    "manufacturer": "Anton Fedorov",
+    "keyboard_name": "dacobokb_l",
+    "maintainer": "datacompboy",
+    "bootloader": "custom",
+    "diode_direction": "COL2ROW",
+    "features": {
+        "bootmagic": true,
+        "command": false,
+        "console": false,
+        "extrakey": true,
+        "mousekey": true,
+        "nkro": true
+    },
+    "matrix_pins": {
+        "cols": ["GP0", "GP1", "GP2", "GP3", "GP4", "GP5", "GP6", "GP7"],
+        "rows": ["GP10", "GP11", "GP12", "GP13", "GP14", "GP15"]
+    },
+    "processor": "RP2040",
+    "url": "",
+    "usb": {
+        "device_version": "1.0.0",
+        "pid": "0xDACB",
+        "vid": "0x1111"
+    }
+}
