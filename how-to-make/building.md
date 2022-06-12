@@ -180,6 +180,10 @@ Published on [Medium][ch2-medium], [LinkedIn][ch2-lin] and [Habr][ch2-habr].
 [ch2-lin]: https://www.linkedin.com/pulse/building-my-own-ergo-keyboard-chapter-2-hardware-choices-fedorov/
 [ch2-habr]: https://habr.com/ru/post/670458/
 
+<!--
+In the [previous chapter] I put together requirements for my keyboard and settled on the layout.
+-->
+
 ### Hunt for key switches
 
 So I want to get a low-profile keyboard. How low is low enough? What kind of switch feeling do I want? These
@@ -495,3 +499,560 @@ The next after, Chapter 4, is intended for keyboard packaging into the case.
 And the last in the sequence 5th chapter is about keycaps design and manufacture.
 
 --------- Chapter 3 start -->
+
+## Chapter 3: make it live!
+
+Published on [Medium][ch3-medium], [LinkedIn][ch3-lin] and [Habr][ch3-habr].
+
+[ch3-medium]: https://medium.com/@datacompboy/building-my-own-ergo-keyboard-make-it-live-f9613b0b266a?source=friends_link&sk=d954dbbc2644797aac14fa8038811ed5
+[ch3-lin]: https://www.linkedin.com/pulse/building-my-own-ergo-keyboard-p3-make-live-anton-fedorov/
+[ch3-habr]: https://habr.com/ru/post/671034/
+
+<!--
+In the [previous chapter] orders for the PCB and all other details were placed. They all have arrived
+and time to build them together and breathe life into it with freshly built software. If you missed
+how all this started, take a look into the [first chapter].
+-->
+
+### Building the keyboard
+
+Okay, once all the parts of the keyboard arrived, it was time to build it together. Which requires at least a
+soldering iron, flux, solder. It also recommended having a multimeter (resistance measurements to check connection
+quality, diode tester to validate that polarity was fine). Since I ordered SMD diodes, I also need a magnifying
+glass. "3rd arm" is usually quite useful too and extra light.
+
+So I've bought:
+  * [FixPoint 51226]: Third hand soldering aid with magnifying glass and holder. While the base is quite heavy,
+    it was a bit suboptimal for keyboard building: plates are too big to be kept steady, so I also used some
+	small glasses to keep the plate on. Also the clips are not covered by rubber, so they scratch the PCB
+	they hold onto. Given the size of plates I also haven't tried its soldering iron holder, I used a separate
+	one to keep the distance.
+  * [JCD 908U Kit]: all-in-one kit for DIY soldering: acceptable soldering iron (100W, really fast warm up,
+    set of various heads -- but yeah, not the best ones probably, but for lying in the basement for years
+	they are good enough), a multimeter, a base, a hard flux and a flux paste, a solder, tweezers, a desoldering
+	tool and everything in a foldable box for easy storing. While I found the soldering iron quite good for
+	occasional use -- the set indeed had problems: the desoldering tool was missing (instead there was a
+	desoldering wick), flux paste was spilled all over the contents (trivially removed with some rug and
+	70% alcohol). I've got quite a mixed impression -- but for the price of the cheapest weird soldering iron
+	I could buy locally I've got an usable and more powerful one with some addons -- it's a fine deal.
+
+Unfortunately, the ordered soldering iron was still in flight, but it was a weekend, so I borrowed the soldering
+iron + multimeter from a colleague who lives nearby -- so I could work over the weekend.
+
+So ordered also a solder/flux:
+
+  * [CFH Electronic solder EL 324]: quite convenient and easy to use. A bit thick (1mm) but has embedded
+    flux which makes it trivial to solder. I also bought [Goobay Professional lead-free solder] for its 0.35mm
+	thickness, but haven't really tried to use it -- my fear that 1mm solder will be too thick was moot. Real
+	problem was my lack of soldering skills :)
+  * [CFH Flux FM 342]: just normal flux paste, the only one found in the supermarket nearby.
+
+The working mat I already had at home, so time to build them! Prepare your working place: place the
+protection mat, prepare the stand, get all the elements on one side and solder on another and so on. Ready:
+
+![Prepare your working place](building-step1.jpg)
+
+Oh yeah! I really lost all my little soldering skills :( The quality of result is suboptimal, I've got one
+diode not connected on the first try (despite testing all the traces with a multimeter). I still can't say what's
+better: solder quick swap sockets first or diodes... 
+
+![One by one solder an every socket, every diode](building-step2.jpg)
+
+Be careful -- the hotswap sockets are a bit asymmetric, they have one side as square and another side as
+octahedron which gives more space to solder diodes in -- but it doesn't really matter, in the end, diodes fit
+anyway. Obviously it is important to get the multimeter and trace all the lines back to the future place of the
+MCU module, so any diode placed wrong or not soldered in properly caught early and fixed.
+
+![Inspect and trace every line from the connector to the MCU with multimeter](building-step3.jpg)
+
+Then solder on the connector and the MCU module itself. Hardware part is done -- insert the switches:
+
+![Almost done!](building-step4.jpg)
+
+Once the base was done I went to attach the caps and install stabilizers...
+
+... that was the point where I found the first bug of the PCB I made: low-profile stabilizer holes were placed
+wrong! They should've been placed 3mm higher than they're drawn in the Stab module. 
+
+... but it wasn't a problem by itself since stabs are too low to be placed on PCB for on-pcb mounted chocs! They
+work fine would keys be placed IN the pcb, not ON the pcb. Although, it looks like the stabs may work very well
+for the ultra-low-profile switches... Nvm, I'll explain how/what I did with stabilizers in the last chapter,
+for now I said "it'll be so for now" and go for the software.
+
+![](building-left-done.jpg)
+
+[FixPoint 51226]: https://www.galaxus.ch/en/s1/product/fixpoint-third-hand-soldering-aid-with-magnifying-glass-and-holder-supporthand-soldering-iron-access-12500037?supplier=406802
+[JCD 908U Kit]: https://www.aliexpress.com/item/1005003663173613.html
+[CFH Electronic solder EL 324]: https://www.galaxus.ch/en/s4/product/cfh-electronic-solder-el-324-lead-free-70g-soldering-irons-18492591
+[Goobay Professional lead-free solder]: https://www.galaxus.ch/en/s1/product/goobay-professional-lead-free-solder-solder-soldering-iron-accessories-12500052?supplier=406802
+[CFH Flux FM 342]: https://www.jumbo.ch/de/loetfett-cfh-33392
+
+### Building the software
+
+Just building a matrix connected to MCU is not enough to make a keyboard. It should also be visible in the
+system as a keyboard and work as a keyboard. So, firmware to be done.
+
+Looking for a RP2040-compatible keyboard software I found some odd very high-level firmware projects:
+
+  * https://github.com/KMKfw/kmk_firmware -- python-based firmware
+  * https://github.com/picoruby/prk_firmware -- ruby-based firmware
+
+Since I have experience as a low-level engineer, the idea of running interpreting language on a MCU just for
+the sake of running an infinity loop scanning matrix felt very wrong. Yes, it works. No, I don't like the idea :)
+Which lead to the next option:
+
+  * https://github.com/qmk/qmk_firmware -- C-based firmware.
+
+The [QMK](https://qmk.fm) project is awesome, it is very feature-rich but the firmware builds only with
+features you need. It'll be firmware which should be much more power-efficient and thus hurts my feelings much
+less. One problem -- it doesn't support RP2040 yet.
+
+Well, since the module is cheap, legs-full and thus an awesome base board for keyboards (especially with LEDs,
+screens etc etc -- lots of GPIO pins needed), there is already an open [feature request][qmk/issue/11649] to add
+a support. And @KarlK90 already made a [pull-request][qmk/pull/11649] with support.
+
+Which means it's ready to be used!
+
+[qmk/issue/11649]: https://github.com/qmk/qmk_firmware/issues/11649
+[qmk/pull/11649]: https://github.com/qmk/qmk_firmware/pull/14877
+
+#### Installing the QMK
+
+To install the QMK environment on Windows, the easiest way is to install the prebuilt MSYS environment from
+https://msys.qmk.fm/. Once you installed it, run the "QMK MSYS" shell -- all the commands below done here.
+
+First, fetch the code for the RP2040 supporting QMK fork/branch (once pull-request will be merged, drop from
+the command everything starting from (including) `-b`), adjusting path to where you store work stuff on your
+computer.
+
+```bash
+$ qmk setup -H D:/Keyboard/qmk_firmware -b feature/raspberry-pi-rp2040-support KarlK90/qmk_firmware.git
+...
+Would you like to set D:/Keyboard/qmk_firmware as your QMK home? [y/n] y
+Ψ QMK Doctor is checking your environment.
+Ψ CLI version: 1.0.0
+Ψ QMK home: D:/Keyboard/qmk_firmware
+Ψ Detected Windows 10 (10.0.19044).
+Ψ Git branch: feature/raspberry-pi-rp2040-support
+Ψ Repo version: 0.9.43
+Ψ All dependencies are installed.
+Ψ Found ...
+Ψ Submodules are up to date.
+Ψ QMK is ready to go
+```
+
+Be patient, it'll take time to check out the main repository and all relevant submodules.
+Now try to learn how to create new keyboard:
+
+```bash
+$ qmk new-keyboard -h
+```
+
+... and learn from the error messages that it missing `wheel` and `Pillow`.
+
+```bash
+$ pacman -S mingw-w64-x86_64-openjpeg2 
+$ pacman -S mingw-w64-x86_64-zlib
+$ pacman -S mingw-w64-x86_64-freetype 
+$ pacman -S mingw-w64-x86_64-libimagequant 
+$ pacman -S mingw-w64-x86_64-libraqm
+$ pip3 install --upgrade wheel
+$ pip3 install --upgrade Pillow
+```
+
+Okay, dependencies are there, let's create keyboard software.
+
+#### Create software for one half
+
+Don't forget to settle on the name of your keyboard. The hardest thing in software development is naming things.
+I used `dacobokb` which is convenient, easy to remember and trivial to type.
+
+The keyboard I'm building here has two dependent sides, and the easiest way to make things work is going
+incremental. So I'm going to create simple firmware for one half, test the hardware and think about how to merge
+them later. Especially since at this point I only had one half built.
+
+So, let's bootstrap code for the new keyboard. Same as I did with the layout earlier, I use `fullsize_ansi` as
+a base to edit it later.
+
+```bash
+$ qmk new-keyboard -u datacompboy -n "Anton Fedorov" -l fullsize_ansi -t RP2040 -kb dacobokb_l
+```
+
+The base files tree created under `D:\Keyboard\qmk_firmware\keyboards\dacobokb_l\`, time to make it right.
+Open just the folder `D:\Keyboard\qmk_firmware\keyboards\dacobokb_l\` as a workspace in [Notepad++] or any
+other editor of your choice.
+
+ 1. Edit `rules.mk` file. Full file contents is:
+
+   ```makefile
+   MCU = RP2040
+   ```
+
+ 2. Edit `info.json`. Essential settings to change to make it work is to set processor to "RP2040",
+	bootloader to "custom" and set matrix_pins to match your schematic. (If you hand-wired your keyboard,
+	use the printed matrix with lines writen over it -- you did that, did you?)
+	
+	```json
+	{
+		...
+		"bootloader": "custom",
+		"processor": "RP2040",
+		"matrix_pins": {
+			"cols": ["GP0", "GP1", "GP2", "GP3", "GP4", "GP5", "GP6", "GP7"],
+			"rows": ["GP10", "GP11", "GP12", "GP13", "GP14", "GP15"]
+		},
+		...
+	}
+	```
+	
+	It seems the layouts could be removed completely -- or go to https://qmk.fm/converter/ paste the "raw
+	data" output from the keyboard-layout-editor  into "Input" field -- and from the "output" copy the
+	`"layout": [...]` line to replace the generated one.
+	
+	It is OK as well to set usb pid/vid to anything you want (better to avoid confusion so
+	https://pid.codes/1209/ has good list it known PIDs under open-source available VID 1209
+	with instructions on how to reserve one for you -- or use any you want if you don't want
+	to share it, just beware of potential future conflicts).
+	
+ 3. Create the ".h" file for the keymap translation -- use the name of the keyboard. I.e. added `dacobokb_l.h`
+    file. That's where the saved earlier `#define` is needed.
+	
+	```c
+	#pragma once
+	#include "quantum.h"
+	
+	// Copy-paste the #define macro that was earlier generated at the matrix PCB generation.
+	#define LAYOUT( \
+		K00, K01, K02, K03, K04, K05, K06, K07, \
+		K10, K11, K12, K13, K14, K15, K16, K17, \
+		K20,      K22, K23, K24, K25, K26, K27, \
+		K30,      K32, K33, K34, K35, K36, K37, \
+		K40,      K42, K43, K44, K45, K46, K47, \
+		K50,      K52, K53, K54,      K56  \
+	) { \
+		{ K00,   K01,   K02,   K03,   K04,   K05,   K06,   K07 }, \
+		{ K10,   K11,   K12,   K13,   K14,   K15,   K16,   K17 }, \
+		{ K20,   KC_NO, K22,   K23,   K24,   K25,   K26,   K27 }, \
+		{ K30,   KC_NO, K32,   K33,   K34,   K35,   K36,   K37 }, \
+		{ K40,   KC_NO, K42,   K43,   K44,   K45,   K46,   K47 }, \
+		{ K50,   KC_NO, K52,   K53,   K54,   KC_NO, K56,   KC_NO }  \
+	}
+	```
+	
+ 4. Edit the `keymaps/default/keymap.c` file to match the desired layout. As I found it convenient, I added
+	for readability ("base layer" and "Fn-layer") of layer names some defines:
+
+	```c
+	#define _BL 0
+	#define _FL 1
+	```
+	
+	Then changed `[0] = LAYOUT...` to `[_BL] = LAYOUT(` and then edit following lines to match the layout for
+	the half. Since keyboard was the bootstrapped as fullsize iso, it is as trivial as just removing not needed
+	keys at the end of the lines.
+	
+	Use `MO(_FL)` to create an Fn key that works as a `MO`difier towards `Fn-Layer`. And to define the Fn
+	layer itself, I added:
+	
+	```c
+	[_FL] = LAYOUT(
+		KC_CALCULATOR, KC_AUDIO_MUTE, KC_AUDIO_VOL_DOWN, KC_AUDIO_VOL_UP, KC_MEDIA_PREV_TRACK, KC_MEDIA_PLAY_PAUSE, KC_MEDIA_NEXT_TRACK, _______,
+		_______, _______, _______, _______, _______, _______, _______, _______,
+		...
+	),
+	```
+	
+	It is necessary to define all the keys, just some of them as "_______" which means "same as on the
+	previous layer".
+
+Created half keyboard files [saved on github](https://github.com/datacompboy/split-keyboard/tree/main/qmk-keyboard/dacobokb_l)
+
+Once all edits are done, compile the keyboard:
+
+```bash
+$ qmk compile -kb dacobokb_l -km default
+Ψ Compiling keymap with make --jobs=1 dacobokb_l:default
+
+
+QMK Firmware 0.9.43
+Making dacobokb_l with keymap default
+...
+Generating: ...
+Compiling: ...
+Assembling: ...
+and finally:
+Linking: ...
+Linking: .build/dacobokb_l_default.elf                              [OK]
+Creating load file for flashing: .build/dacobokb_l_default.hex      [OK]
+Creating UF2 file for deployment: .build/dacobokb_l_default.uf2     [OK]
+Copying dacobokb_l_default.uf2 to qmk_firmware folder               [OK]
+```
+
+Done, firmware is compiled. Press the tiny button on the RP2040 module itself, connect it to the USB port, release
+the button -- a new disk appears in the system (E:\ in my case). So, to flash it, just copy:
+
+```bash
+$ cp D:/Keyboard/qmk_firmware/dacobokb_l_default.uf2 E:/
+```
+
+File copies almost instantly and MCU reboots into a keyboard mode. Test all the keys to find out which is not
+working. (Heh, I had one on the left side -- badly soldered diode, and one on the right -- badly soldered socket).
+Since it's working, repeat building for the right half of the keyboard (SW + HW).
+
+Note: while you can test your Fn layer on the left half (where Fn key is placed), to test the Fn layer on the
+right half you either need to temporary redefine one of the keys to be an `MO(_FL)` or just wait until we merge
+the halves.
+
+Actually, it's time to merge them!
+
+[Notepad++]: https://notepad-plus-plus.org/downloads/
+
+#### Create software for split mode
+
+QMK can support a split keyboard when any of the halves are connected via USB and the other part is connected
+over a serial line providing the primary half with information about key press/release. There are more than that
+(modifiers state sync, LED controlling etc etc), but for my case all I need is to make sure any of them could
+be a primary one and that the Fn key on the left side switches to the Fn layer for both sides.
+
+There are some documentation about split keyboard feature: https://docs.qmk.fm/#/feature_split_keyboard. But most
+of the bits of how to configure and how it works I found in the source code. As I understood (correct me if I'm
+wrong!), QMK has following assumptions:
+
+  - The primary/secondary state of the keyboard detected by either the USB power or the USB connection state.
+  - Both halves connected using the same RX/TX pins / UART / I2C lines.
+  - Both halves have the same number of rows and cols (but they could be connected to different pins).
+  - The left/right half selected based on either:
+	 - Some fixed pin state at startup,
+	 - USB state at startup,
+	 - always connected diode at some matrix position.
+
+Since I designed PCB without this knowledge, I had a nice state:
+  - left and right halves uses different GPIO lines for I/O and different UARTs,
+  - left and right halves has different number of columns,
+  - rows and columns on the left and the right halves are connected to the different GPIO legs and there are
+    *no* GPIOs that are not used on both halves.
+
+Well, may be it is possible to find an shared empty space on the matrix between left and right halves, so I
+could short-circuit these two legs with a diode on one of the halves, but that won't help to initialize halves
+UARTs differently -- thus I didn't pursue that and went down the road to find a way to build two versions of
+firmware -- one for left and one for the right half. That's not well documented, but I made it working.
+I'll definitely think about better design for V2.
+
+The settings below work for the case when hardware UART is used ("usart" in rules.mk and "SIO" driver from
+chibios).
+
+ 0. Copy the left or right FW version into a common name (`dacobokb_l` ==> `dacobokb` in my case).
+
+ 1. Edit `rules.mk`, add two more lines to enable split mode using hardware UART driver "usart"
+ 
+	```makefile
+	MCU = RP2040
+	SPLIT_KEYBOARD = yes
+	SERIAL_DRIVER = usart
+	```
+	
+ 2. Edit `info.json` to remove `matrix_pins`: you can't use it to set up different pins for the left/right half.
+	Feel free to remove layouts or keep both.
+
+ 3. Edit `config.h` file. Since we no longer have `matrix_pins` defined in the `info.json`, we'll need to set it
+    up there. Also, we'll need to set up the right driver to use. The important parts of the file will be:
+	
+	```c
+	#pragma once
+	#include "config_common.h"
+	
+	// Left half should have two fake columns to make left & right matrix equals
+	#define MATRIX_COL_PINS       { GP0,  GP1,  GP2,  GP3,  GP4,  GP5,  GP6,  GP7,  GP7,  GP7 }
+	#define MATRIX_ROW_PINS       { GP10, GP11, GP12, GP13, GP14, GP15 }
+
+	#define MATRIX_COL_PINS_RIGHT { GP16, GP3,  GP2,  GP17, GP18, GP20, GP21, GP22, GP27, GP28 }
+	#define MATRIX_ROW_PINS_RIGHT { GP26, GP19, GP4,  GP13, GP14, GP15 }
+
+	#define SPLIT_USB_DETECT
+	#define SPLIT_LAYER_STATE_ENABLE
+	#define SERIAL_USART_FULL_DUPLEX
+	#define HAL_USE_SIO  TRUE
+	```
+	
+	As you can see, I listed the GPIO leg of the last column on the left half three times to make sure the number
+	of columns to scan for left and right half matches -- but all the keys there would be set to KC_NO to ensure
+	they are ignored.
+
+	Last 4 lines enables detection of primary state based on USB connection (instead of USB power detection),
+	sync layer state (it only needed to show the state, like a turn led on, since keypress ==> key code
+	translation is always happens on the primary half) and sets full-duplex communication using SIO driver.
+
+ 4. Rename the existing `.h` file to match new keyboard tree version (`dacobokb_l.h` ==> `dacobokb.h`) and
+    edit it afterwards to create combined layout definition: the `#define LAYOUT` need to list both halves
+    since the primary half will actually do the keys processing, so it needs to know the full layout.
+
+	Lot of existing keyboards available in the source tree use mapping where keys listed in a row, like that:
+	
+	```c
+	#define LAYOUT( \
+		L01, L02, L03, L04,    R01, R02, R03, R04, \
+		L11, L12, L13, L14,    R11, R12, R13, R14 \
+	) { \
+		{ L01, L02, L03, L04 }, \
+		{ L11, L12, L13, L14 }, \
+		{ R01, R02, R03, R04 }, \
+		{ R11, R12, R13, R14 } \
+	}
+	```
+
+	but since my halves have different numbers of columns and I already have two macroses for parts separately,
+	I just list them one after another; and to make it compatible with what QMK wants, I added right amount of
+	KC_NO keys for the left part so the total number of columns matches. It was especially handy since the left
+	half have only 8 columns, so define generator made the macro using one digit for column (`Krc` like `K22`)
+	and since the right half has 10 columns so define generator made the macro with two digits for column
+	(`Krcc` like `K209`), so all the macro arguments had no conflicts. Would you try to do the same with
+	smaller keyboards, I recommend renaming from generic `Kxx` to `Rxx` and `Lxx` for right and left one
+	correspondingly for readability and convenience.
+	
+	So the idea is to get the combined macro like that:
+	
+	```c
+	#define LAYOUT( \
+		L01, L02, L03, \
+		L11, L12, L13, \
+		R01, R02, R03, R04, \
+		R11, R12, R13, R14 \
+	) { \
+		{ L01, L02, L03, KC_NO }, \
+		{ L11, L12, L13, KC_NO }, \
+		{ R01, R02, R03, R04 }, \
+		{ R11, R12, R13, R14 } \
+	}
+	```
+
+	be careful to add the commas where needed between the end of left and right halves (compiler will remind and
+	complain about missing ones).
+	
+	Add to the file also a prototype for a function that we'll use to override the left/right half state:
+	
+	```c
+	bool is_keyboard_left(void);
+	```
+	
+ 5. Create the `${keyboard}.c` file so we can define our detection function. Edit created `dacobokb.c`:
+	
+	```c
+	#include "dacobokb.h"
+	#include "config.h"
+
+	bool is_keyboard_left(void)
+	{
+	#ifdef LEFT
+	#pragma message "kb.c: Compiled left version"
+		return true;
+	#else
+	#pragma message "kb.c: Compiled right version"
+		return false;
+	#endif
+	}
+	```
+	
+	This will hardcode the half state at the compile time. (Comment out #pragma to reduce noise during the
+	compilation process).
+
+ 6. Now we need to set hardware configuration for the UART plus make it dependent on the half setting. Create
+	`mcuconf.h` file, with the following content:
+	
+	```c
+	#pragma once
+
+	#include_next <mcuconf.h>
+
+	#include "config.h"
+
+	#undef  RP_SIO_USE_UART0
+	#undef  RP_SIO_USE_UART1
+	#ifdef LEFT
+	// LEFT: UART0 on 21/22 GP16/GP17
+	#  define SERIAL_USART_TX_PIN		GP16
+	#  define SERIAL_USART_RX_PIN		GP17
+	#  define PLATFORM_SIO_USE_SIO0     TRUE
+	#  define RP_SIO_USE_UART0          TRUE
+	#  define SERIAL_USART_DRIVER       SIOD0
+	#else
+	// RIGHT: UART1 on 11/12 GP8/GP9
+	#  define SERIAL_USART_TX_PIN		GP8
+	#  define SERIAL_USART_RX_PIN		GP9
+	#  define PLATFORM_SIO_USE_SIO1     TRUE
+	#  define RP_SIO_USE_UART1          TRUE
+	#  define SERIAL_USART_DRIVER       SIOD1
+	#endif
+	```
+	
+	This will define based on the existence of `#define LEFT` in the `config.h` which uart on which pins to be
+	used for communication.
+
+ 7. The next bit to make things working is to edit the `keymaps/default/keymap.c` file.
+ 
+	To merge the layouts from both left and right halves, it is possible now just copy-paste the keymap from
+	the right layers after the left one. Again -- don't forget to add a comma after the last left key :)
+
+ 8. To create separate left/right keyboards create two subdirectories under `keymaps/`: `left` and `right`.
+
+ 9. Create `left/config.h` file, that will enable left-half setting:
+
+	```c
+	#pragma once
+
+	#include_next "config.h"
+
+	#define LEFT
+	```
+	
+	We don't need one for the right, since the right half is our default if LEFT is not set.
+	
+ 10. Now we need to define the keymaps for halves -- create `keymap.c` for both left and right via copy from the
+	 default, symlink to it or, like I do, just with the simple #include inside:
+	
+	 ```c
+	 #include "../default/keymap.c"
+	 ```
+
+All created keyboard files [available on my github](https://github.com/datacompboy/split-keyboard/tree/main/qmk-keyboard/dacobokb).
+
+Okay, everything is done, compile 'em!
+
+```bash
+$ qmk compile -kb dacobokb -km left
+$ qmk compile -kb dacobokb -km right
+```
+
+Time to upload firmwares. Take the left half, press the button on the MCU, connect, copy the firmware to the drive:
+
+```bash
+$ cp D:/Keyboard/qmk_firmware/dacobokb_left.uf2 E:/
+```
+
+Test all the keys again.
+
+Disconnect, take the right half, press the button, connect, copy:
+
+```bash
+$ cp D:/Keyboard/qmk_firmware/dacobokb_right.uf2 E:/
+```
+
+Test all the keys here.
+
+Disconnect half, connect halves between each other with the cable, connect any of the halves to the USB. Test the
+keyboard. Test the Fn+keys. Connect cable to another half. Repeat the test. Enjoy! :)
+
+The keyboard is alive! Time to use it for a while to see how convenient it is, are there any changes necessary with
+the layout. Is any keys not working properly etc. As with everything else, the earlier in the process the error is
+caught, the cheaper the fix: f.e. if you realize that the actual key placement is not what you are happy about, you
+could not spend money on the case -- but just go to the [step 1] -- adjust the layout and so on. Otherwise, try it
+a little more and then move to the next chapter.
+
+## To be continued!
+
+The next after, Chapter 4, is intended for keyboard packaging into the case.
+
+And the last in the sequence 5th chapter is about keycaps design and manufacture.
+
+<!-- -------- chapter 3 cut
+
+--------  Chapther 4 begin -->
